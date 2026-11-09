@@ -239,7 +239,10 @@ extension WebView {
                 "appleid.apple.com"
             ]
             let isAuthHost = authHosts.contains { host == $0 || host.hasSuffix("." + $0) }
-            let wantsPopup = isAuthHost || windowFeatures.width != nil || windowFeatures.height != nil
+            let wantsPopup = isAuthHost
+                || windowFeatures.width != nil
+                || windowFeatures.height != nil
+                || navigationAction.navigationType == .other
 
             // Normal target=_blank links stay in the main webview.
             if !wantsPopup {

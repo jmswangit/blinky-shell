@@ -49,5 +49,3 @@ final class WebViewModel: ObservableObject {
         }
     }
 }
-
-}

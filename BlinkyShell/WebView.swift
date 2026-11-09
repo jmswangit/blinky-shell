@@ -80,8 +80,7 @@ extension WebView {
         private var observations: [NSKeyValueObservation] = []
         private var filePickerCompletion: (([URL]?) -> Void)?
         private var downloadDestinations: [ObjectIdentifier: URL] = [:]
-        private var popupController: UIViewController?
-        private weak var popupWebView: WKWebView?
+        private var popups: [(controller: UIViewController, webView: WKWebView)] = []
 
         init(model: WebViewModel) {
             self.model = model
@@ -228,18 +227,32 @@ extension WebView {
                 return nil
             }
 
-            // Nested popups from a popup stay in the popup.
-            if webView === popupWebView {
-                if let requestURL {
-                    webView.load(navigationAction.request)
-                }
+            let host = (requestURL?.host ?? "").lowercased()
+            let authHosts = [
+                "plex.tv", "app.plex.tv",
+                "accounts.google.com",
+                "auth.swan.cool",
+                "login.microsoftonline.com",
+                "appleid.apple.com"
+            ]
+            let isAuthHost = authHosts.contains { host == $0 || host.hasSuffix("." + $0) }
+            let isFromPopup = popups.contains { $0.webView === webView }
+            let wantsPopup = isBlank
+                || isAuthHost
+                || isFromPopup
+                || windowFeatures.width != nil
+                || windowFeatures.height != nil
+                || navigationAction.navigationType == .other
+
+            // Normal target=_blank links stay in the main webview.
+            if !wantsPopup {
+                webView.load(navigationAction.request)
                 return nil
             }
 
-            // Always create a real popup for new-window requests so that
-            // window.open() returns a valid WindowProxy. OAuth/SSO flows
-            // (Plex, Google, Authentik, Beszel/PocketBase) depend on this.
-            // The popup shares the opener's process pool and cookie store.
+            // OAuth/SSO and JS-opened windows need a real popup so
+            // window.open() returns a valid WindowProxy and window.close()
+            // works. Popups share the opener's process pool and cookie store.
             let popup = WKWebView(frame: .zero, configuration: configuration)
             popup.navigationDelegate = self
             popup.uiDelegate = self
@@ -254,23 +267,23 @@ extension WebView {
             }
 
             let controller = PopupViewController(webView: popup)
-            controller.onClose = { [weak self] in
-                self?.popupController = nil
-                self?.popupWebView = nil
-            }
             let navigation = UINavigationController(rootViewController: controller)
             navigation.modalPresentationStyle = .pageSheet
-            popupWebView = popup
-            popupController = navigation
+
+            controller.onClose = { [weak self, weak navigation] in
+                guard let self, let navigation else { return }
+                self.popups.removeAll { $0.controller === navigation }
+            }
+
+            popups.append((controller: navigation, webView: popup))
             present(navigation)
             return popup
         }
 
         func webViewDidClose(_ webView: WKWebView) {
-            guard webView === popupWebView else { return }
-            popupController?.dismiss(animated: true)
-            popupController = nil
-            popupWebView = nil
+            guard let index = popups.firstIndex(where: { $0.webView === webView }) else { return }
+            let entry = popups.remove(at: index)
+            entry.controller.dismiss(animated: true)
         }
 
         // MARK: - JavaScript dialogs

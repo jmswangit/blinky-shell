@@ -26,10 +26,10 @@ struct ContentView: View {
                     .transition(.opacity.combined(with: .scale(scale: 0.92, anchor: .bottom)))
             } else {
                 collapsedButton
-                    .frame(maxWidth: .infinity, alignment: .trailing)
+                    .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.horizontal, 14)
                     .padding(.bottom, 8)
-                    .transition(.opacity.combined(with: .scale(scale: 0.92, anchor: .bottomTrailing)))
+                    .transition(.opacity.combined(with: .scale(scale: 0.92, anchor: .bottomLeading)))
             }
         }
         .background(Color.black.ignoresSafeArea())

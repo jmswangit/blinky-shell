@@ -12,7 +12,7 @@ It exists because an installed PWA cannot keep cross-origin links inside its own
 - Keeps every `http`/`https` navigation in one `WKWebView`.
 - Loads `target=_blank` / `window.open` links in the same webview instead of an in-app browser.
 - Home, Back, Forward, Reload, and Settings buttons in a floating toolbar.
-- The toolbar fades into a small corner button after 5 seconds of inactivity; tap the corner button to bring the controls back to the center.
+- The toolbar fades into a small button in the **bottom-left corner** after 5 seconds of inactivity; tap it to bring the controls back to the center.
 - Dark iOS-style app icon generated from `Design/AppIcon.svg`.
 - Full-screen on iPhone Duo: status bar and home indicator hidden, webview edge-to-edge, `obscuredContentInsets = .zero`.
 - Injects a bounded Duo viewport fix into every main-frame page. It only fires when the reserved strip is **60–160 px**, so it does not widen a normal notch (44–59 px) or a Split View window (hundreds of px).
@@ -131,6 +131,25 @@ A paid team certificate/profile is valid for one year. Re-sign before it expires
 - The injected script widens the page's viewport meta to `screen.width` only when the reserved right strip looks like the Duo outer display (60–160 px). It restores the original meta when the condition no longer holds.
 - If an app still leaves a right gap, the next step is to log the measured `reserved`/`inset` values and tune the bounds.
 
+## Passkeys (`auth.swan.cool`)
+
+`WKWebView` only allows passkeys for domains declared in the app's Associated Domains entitlement. The app now ships:
+
+- `BlinkyShell/BlinkyShell.entitlements` with `webcredentials:auth.swan.cool`.
+
+To complete the setup:
+
+1. Enable **Associated Domains** on the App ID (`cool.swan.blinkyshell`) in the Apple Developer portal and regenerate the provisioning profile.
+2. Set your 10-character Team ID in `/docker/authentik/.env` and restart Authentik:
+   ```sh
+   BLINKY_TEAM_ID=ABCDE12345
+   ```
+   The patched AASA view (`custom/apple_site_association.py`, bind-mounted into the container) merges `webcredentials: { "apps": ["<TEAM_ID>.cool.swan.blinkyshell"] }` into Authentik's existing `authsrv` block.
+3. Sign the app with the updated profile. An unsigned IPA cannot carry the entitlement.
+4. Delete and reinstall the app. Apple's CDN caches the AASA (up to 24 hours). For testing, a development-signed build with `webcredentials:auth.swan.cool?mode=developer` bypasses the CDN.
+
+Google passkeys (`accounts.google.com`) cannot work in a `WKWebView` because Google's AASA cannot list your app. Use Safari/SFSafariViewController for that login, or use a password/2FA.
+
 ## Known limitations
 
 - **Self-signed HTTPS** is rejected by `WKWebView` and cannot be overridden with public API. Use HTTP, install the CA profile on the device, or expose the app with `tailscale serve` (trusted `*.ts.net` certificate).
@@ -148,3 +167,4 @@ A paid team certificate/profile is valid for one year. Re-sign before it expires
 | Build picks the wrong Xcode | The runner image changed; the workflow falls back to the newest 27.x, then the newest overall. |
 | Duo still has a right gap | The app is probably being clamped by WebKit. Open Safari Web Inspector (the webview is inspectable) and look for the `[Homepage] duo-fit` console line, then adjust `DuoFit.swift`. |
 | Pages cannot reach the LAN | Allow **Local Network** for Homepage in Settings → Privacy & Security → Local Network. |
+| Passkey prompt doesn't appear on auth.swan.cool | Sign with a profile that includes Associated Domains, set `BLINKY_TEAM_ID`, and confirm the AASA lists `<TEAM_ID>.cool.swan.blinkyshell`. |

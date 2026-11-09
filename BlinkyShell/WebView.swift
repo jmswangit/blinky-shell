@@ -29,13 +29,29 @@ struct WebView: UIViewRepresentable {
         let webView = WKWebView(frame: .zero, configuration: configuration)
         webView.navigationDelegate = context.coordinator
         webView.uiDelegate = context.coordinator
-        webView.allowsBackForwardNavigationGestures = true
+        webView.allowsBackForwardNavigationGestures = false
         webView.scrollView.contentInsetAdjustmentBehavior = .never
         webView.scrollView.bounces = true
         webView.isOpaque = false
         webView.backgroundColor = .black
         webView.scrollView.backgroundColor = .black
         webView.isInspectable = true
+
+        let backGesture = UIScreenEdgePanGestureRecognizer(
+            target: context.coordinator,
+            action: #selector(Coordinator.handleBackEdge(_:))
+        )
+        backGesture.edges = .left
+        backGesture.delegate = context.coordinator
+        webView.addGestureRecognizer(backGesture)
+
+        let forwardGesture = UIScreenEdgePanGestureRecognizer(
+            target: context.coordinator,
+            action: #selector(Coordinator.handleForwardEdge(_:))
+        )
+        forwardGesture.edges = .right
+        forwardGesture.delegate = context.coordinator
+        webView.addGestureRecognizer(forwardGesture)
 
         if #available(iOS 26.0, *) {
             webView.obscuredContentInsets = .zero
@@ -53,7 +69,7 @@ struct WebView: UIViewRepresentable {
 }
 
 extension WebView {
-    final class Coordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WKDownloadDelegate, UIDocumentPickerDelegate {
+    final class Coordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WKDownloadDelegate, UIDocumentPickerDelegate, UIGestureRecognizerDelegate {
         private let model: WebViewModel
         private weak var webView: WKWebView?
         private var observations: [NSKeyValueObservation] = []
@@ -94,6 +110,39 @@ extension WebView {
             } else {
                 DispatchQueue.main.async(execute: block)
             }
+        }
+
+        // MARK: - Edge swipe navigation
+
+        @objc func handleBackEdge(_ gesture: UIScreenEdgePanGestureRecognizer) {
+            guard gesture.state == .ended else { return }
+            let translation = gesture.translation(in: gesture.view)
+            let velocity = gesture.velocity(in: gesture.view)
+            if translation.x > 60 || velocity.x > 500 {
+                webView?.goBack()
+            }
+        }
+
+        @objc func handleForwardEdge(_ gesture: UIScreenEdgePanGestureRecognizer) {
+            guard gesture.state == .ended else { return }
+            let translation = gesture.translation(in: gesture.view)
+            let velocity = gesture.velocity(in: gesture.view)
+            if translation.x < -60 || velocity.x < -500 {
+                webView?.goForward()
+            }
+        }
+
+        func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
+            guard let webView = webView,
+                  let edge = gestureRecognizer as? UIScreenEdgePanGestureRecognizer else {
+                return true
+            }
+            return edge.edges == .left ? webView.canGoBack : webView.canGoForward
+        }
+
+        func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer,
+                               shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer) -> Bool {
+            true
         }
 
         // MARK: - Navigation policy

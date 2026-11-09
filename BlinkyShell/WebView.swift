@@ -34,6 +34,7 @@ struct WebView: UIViewRepresentable {
             forMainFrameOnly: true
         )
         configuration.userContentController.addUserScript(tautulliScript)
+        configuration.userContentController.add(context.coordinator, name: "blinkyPlex")
 
         let webView = WKWebView(frame: .zero, configuration: configuration)
         webView.navigationDelegate = context.coordinator
@@ -81,13 +82,14 @@ struct WebView: UIViewRepresentable {
 }
 
 extension WebView {
-    final class Coordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WKDownloadDelegate, UIDocumentPickerDelegate, UIGestureRecognizerDelegate {
+    final class Coordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WKDownloadDelegate, UIDocumentPickerDelegate, UIGestureRecognizerDelegate, WKScriptMessageHandler {
         private let model: WebViewModel
         private weak var webView: WKWebView?
         private var observations: [NSKeyValueObservation] = []
         private var filePickerCompletion: (([URL]?) -> Void)?
         private var downloadDestinations: [ObjectIdentifier: URL] = [:]
         private var popups: [(controller: UIViewController, webView: WKWebView)] = []
+        private var plexPopup: (controller: UIViewController, webView: WKWebView)?
 
         init(model: WebViewModel) {
             self.model = model
@@ -291,6 +293,161 @@ extension WebView {
             guard let index = popups.firstIndex(where: { $0.webView === webView }) else { return }
             let entry = popups.remove(at: index)
             entry.controller.dismiss(animated: true)
+        }
+
+        // MARK: - Native Plex OAuth (Tautulli)
+
+        func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
+            guard message.name == "blinkyPlex" else { return }
+            let clientID = (message.body as? [String: Any])?["clientID"] as? String
+            startPlexOAuth(clientID: clientID, webView: message.webView)
+        }
+
+        private func startPlexOAuth(clientID: String?, webView: WKWebView?) {
+            let headers = plexHeaders(clientID: clientID)
+            var request = URLRequest(url: URL(string: "https://plex.tv/api/v2/pins?strong=true")!)
+            request.httpMethod = "POST"
+            for (key, value) in headers {
+                request.setValue(value, forHTTPHeaderField: key)
+            }
+
+            URLSession.shared.dataTask(with: request) { [weak self] data, _, error in
+                guard let self,
+                      error == nil,
+                      let data,
+                      let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                      let pin = json["id"] as? Int,
+                      let code = json["code"] as? String else {
+                    DispatchQueue.main.async {
+                        webView?.evaluateJavaScript("OAuthErrorCallback()")
+                    }
+                    return
+                }
+
+                let authURL = self.plexAuthURL(headers: headers, code: code)
+                DispatchQueue.main.async {
+                    self.presentPlexPopup(authURL: authURL) { [weak self] in
+                        self?.pollPlexPin(pin: pin, headers: headers, webView: webView)
+                    }
+                }
+            }.resume()
+        }
+
+        private func plexHeaders(clientID: String?) -> [String: String] {
+            let identifier: String
+            if let clientID, !clientID.isEmpty {
+                identifier = clientID
+            } else if let vendor = UIDevice.current.identifierForVendor?.uuidString {
+                identifier = vendor
+            } else {
+                identifier = UUID().uuidString
+            }
+
+            let screen = "\(Int(UIScreen.main.bounds.width))x\(Int(UIScreen.main.bounds.height))"
+            return [
+                "Accept": "application/json",
+                "X-Plex-Product": "Tautulli",
+                "X-Plex-Version": "Plex OAuth",
+                "X-Plex-Client-Identifier": identifier,
+                "X-Plex-Platform": "iOS",
+                "X-Plex-Platform-Version": UIDevice.current.systemVersion,
+                "X-Plex-Model": "Plex OAuth",
+                "X-Plex-Device": "iOS",
+                "X-Plex-Device-Name": "Homepage (Tautulli)",
+                "X-Plex-Device-Screen-Resolution": screen,
+                "X-Plex-Language": "en"
+            ]
+        }
+
+        private func plexAuthURL(headers: [String: String], code: String) -> URL {
+            let params: [(String, String)] = [
+                ("clientID", headers["X-Plex-Client-Identifier"] ?? ""),
+                ("context[device][product]", headers["X-Plex-Product"] ?? ""),
+                ("context[device][version]", headers["X-Plex-Version"] ?? ""),
+                ("context[device][platform]", headers["X-Plex-Platform"] ?? ""),
+                ("context[device][platformVersion]", headers["X-Plex-Platform-Version"] ?? ""),
+                ("context[device][device]", headers["X-Plex-Device"] ?? ""),
+                ("context[device][deviceName]", headers["X-Plex-Device-Name"] ?? ""),
+                ("context[device][model]", headers["X-Plex-Model"] ?? ""),
+                ("context[device][screenResolution]", headers["X-Plex-Device-Screen-Resolution"] ?? ""),
+                ("context[device][layout]", "desktop"),
+                ("code", code)
+            ]
+
+            let allowed = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "-._~"))
+            let query = params.map { pair -> String in
+                let key = pair.0.addingPercentEncoding(withAllowedCharacters: allowed) ?? pair.0
+                let value = pair.1.addingPercentEncoding(withAllowedCharacters: allowed) ?? pair.1
+                return "\(key)=\(value)"
+            }.joined(separator: "&")
+
+            return URL(string: "https://app.plex.tv/auth/#!?\(query)")!
+        }
+
+        private func presentPlexPopup(authURL: URL, onPresented: @escaping () -> Void) {
+            let configuration = WKWebViewConfiguration()
+            configuration.websiteDataStore = .default()
+
+            let popup = WKWebView(frame: .zero, configuration: configuration)
+            popup.navigationDelegate = self
+            popup.uiDelegate = self
+            popup.scrollView.contentInsetAdjustmentBehavior = .never
+            popup.isOpaque = false
+            popup.backgroundColor = .black
+            popup.scrollView.backgroundColor = .black
+            popup.isInspectable = true
+            if #available(iOS 26.0, *) {
+                popup.obscuredContentInsets = .zero
+            }
+            popup.load(URLRequest(url: authURL))
+
+            let controller = PopupViewController(webView: popup)
+            let navigation = UINavigationController(rootViewController: controller)
+            navigation.modalPresentationStyle = .pageSheet
+            controller.onClose = { [weak self] in
+                self?.plexPopup = nil
+            }
+
+            plexPopup = (controller: navigation, webView: popup)
+            present(navigation)
+            onPresented()
+        }
+
+        private func dismissPlexPopup() {
+            plexPopup?.controller.dismiss(animated: true)
+            plexPopup = nil
+        }
+
+        private func pollPlexPin(pin: Int, headers: [String: String], webView: WKWebView?, remaining: Int = 120) {
+            guard remaining > 0 else {
+                dismissPlexPopup()
+                webView?.evaluateJavaScript("OAuthMaxRetryCallback()")
+                return
+            }
+
+            var request = URLRequest(url: URL(string: "https://plex.tv/api/v2/pins/\(pin)")!)
+            for (key, value) in headers {
+                request.setValue(value, forHTTPHeaderField: key)
+            }
+
+            URLSession.shared.dataTask(with: request) { [weak self] data, _, _ in
+                guard let self else { return }
+                if let data,
+                   let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                   let token = json["authToken"] as? String,
+                   !token.isEmpty {
+                    DispatchQueue.main.async {
+                        self.dismissPlexPopup()
+                        let literal = (try? JSONEncoder().encode(token)).flatMap { String(data: $0, encoding: .utf8) } ?? "\"\""
+                        webView?.evaluateJavaScript("signIn(true, \(literal))")
+                    }
+                    return
+                }
+
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
+                    self.pollPlexPin(pin: pin, headers: headers, webView: webView, remaining: remaining - 1)
+                }
+            }.resume()
         }
 
         // MARK: - JavaScript dialogs

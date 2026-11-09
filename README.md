@@ -10,7 +10,8 @@ It exists because an installed PWA cannot keep cross-origin links inside its own
 
 - Loads `http://blinky-ubuntu:3005/` by default (change it in the in-app Settings sheet).
 - Keeps every `http`/`https` navigation in one `WKWebView`.
-- Loads `target=_blank` / `window.open` links in the same webview instead of an in-app browser.
+- Normal `target=_blank` links stay in the same webview; OAuth popups (Plex, Google, Authentik) open in a real child webview so `window.opener`, `postMessage`, and `window.close()` work.
+- Text selection and copy/paste are enabled even if a page tries to disable them.
 - Home, Back, Forward, Reload, and Settings buttons in a floating toolbar.
 - The toolbar fades into a small button in the **bottom-left corner** after 5 seconds of inactivity; tap it to bring the controls back to the center.
 - Dark iOS-style app icon generated from `Design/AppIcon.svg`.
@@ -153,7 +154,7 @@ Google passkeys (`accounts.google.com`) cannot work in a `WKWebView` because Goo
 ## Known limitations
 
 - **Self-signed HTTPS** is rejected by `WKWebView` and cannot be overridden with public API. Use HTTP, install the CA profile on the device, or expose the app with `tailscale serve` (trusted `*.ts.net` certificate).
-- **SSO popups**: `target=_blank` is loaded in the same webview. If an identity provider requires a real popup window, a child webview may be needed.
+- **SSO popups**: OAuth popups for the hosts listed in `WebView.swift` (`plex.tv`, `accounts.google.com`, `auth.swan.cool`, etc.) open in a child webview. Add more hosts there if another provider needs a popup.
 - **No push notifications** (requires native APNs).
 - **Sideload expiry**: paid team = 1 year; free Apple ID = 7 days.
 

@@ -18,6 +18,8 @@ struct WebView: UIViewRepresentable {
         configuration.allowsInlineMediaPlayback = true
         configuration.mediaTypesRequiringUserActionForPlayback = []
         configuration.preferences.isElementFullscreenEnabled = true
+        configuration.preferences.isTextInteractionEnabled = true
+        configuration.preferences.javaScriptCanOpenWindowsAutomatically = true
 
         let script = WKUserScript(
             source: DuoFit.source,
@@ -25,6 +27,21 @@ struct WebView: UIViewRepresentable {
             forMainFrameOnly: true
         )
         configuration.userContentController.addUserScript(script)
+
+        let selectionScript = WKUserScript(
+            source: """
+            (function () {
+              if (document.getElementById('blinky-selection-style')) { return; }
+              var style = document.createElement('style');
+              style.id = 'blinky-selection-style';
+              style.textContent = '* { -webkit-user-select: text !important; user-select: text !important; -webkit-touch-callout: default !important; }';
+              (document.head || document.documentElement).appendChild(style);
+            })();
+            """,
+            injectionTime: .atDocumentEnd,
+            forMainFrameOnly: true
+        )
+        configuration.userContentController.addUserScript(selectionScript)
 
         let webView = WKWebView(frame: .zero, configuration: configuration)
         webView.navigationDelegate = context.coordinator
@@ -36,6 +53,7 @@ struct WebView: UIViewRepresentable {
         webView.backgroundColor = .black
         webView.scrollView.backgroundColor = .black
         webView.isInspectable = true
+        webView.allowsLinkPreview = true
 
         let backGesture = UIScreenEdgePanGestureRecognizer(
             target: context.coordinator,
@@ -43,6 +61,7 @@ struct WebView: UIViewRepresentable {
         )
         backGesture.edges = .left
         backGesture.delegate = context.coordinator
+        backGesture.cancelsTouchesInView = false
         webView.addGestureRecognizer(backGesture)
 
         let forwardGesture = UIScreenEdgePanGestureRecognizer(
@@ -51,6 +70,7 @@ struct WebView: UIViewRepresentable {
         )
         forwardGesture.edges = .right
         forwardGesture.delegate = context.coordinator
+        forwardGesture.cancelsTouchesInView = false
         webView.addGestureRecognizer(forwardGesture)
 
         if #available(iOS 26.0, *) {
@@ -75,6 +95,8 @@ extension WebView {
         private var observations: [NSKeyValueObservation] = []
         private var filePickerCompletion: (([URL]?) -> Void)?
         private var downloadDestinations: [ObjectIdentifier: URL] = [:]
+        private var popupController: UIViewController?
+        private weak var popupWebView: WKWebView?
 
         init(model: WebViewModel) {
             self.model = model
@@ -214,15 +236,70 @@ extension WebView {
                      createWebViewWith configuration: WKWebViewConfiguration,
                      for navigationAction: WKNavigationAction,
                      windowFeatures: WKWindowFeatures) -> WKWebView? {
-            if navigationAction.targetFrame == nil, let url = navigationAction.request.url {
-                let scheme = (url.scheme ?? "").lowercased()
-                if scheme == "http" || scheme == "https" {
-                    webView.load(navigationAction.request)
-                } else {
-                    UIApplication.shared.open(url, options: [:], completionHandler: nil)
-                }
+            guard let url = navigationAction.request.url else { return nil }
+
+            let scheme = (url.scheme ?? "").lowercased()
+            guard scheme == "http" || scheme == "https" else {
+                UIApplication.shared.open(url, options: [:], completionHandler: nil)
+                return nil
             }
-            return nil
+
+            // Nested popups from a popup stay in the popup.
+            if webView === popupWebView {
+                webView.load(navigationAction.request)
+                return nil
+            }
+
+            let host = (url.host ?? "").lowercased()
+            let authHosts = [
+                "plex.tv", "app.plex.tv",
+                "accounts.google.com",
+                "auth.swan.cool",
+                "login.microsoftonline.com",
+                "appleid.apple.com"
+            ]
+            let isAuthHost = authHosts.contains { host == $0 || host.hasSuffix("." + $0) }
+            let wantsPopup = isAuthHost || windowFeatures.width != nil || windowFeatures.height != nil
+
+            // Normal target=_blank links stay in the main webview.
+            if !wantsPopup {
+                webView.load(navigationAction.request)
+                return nil
+            }
+
+            // OAuth flows need a real popup so window.opener / postMessage /
+            // window.close() keep working.
+            let popup = WKWebView(frame: .zero, configuration: configuration)
+            popup.navigationDelegate = self
+            popup.uiDelegate = self
+            popup.allowsBackForwardNavigationGestures = true
+            popup.scrollView.contentInsetAdjustmentBehavior = .never
+            popup.isOpaque = false
+            popup.backgroundColor = .black
+            popup.scrollView.backgroundColor = .black
+            popup.isInspectable = true
+            if #available(iOS 26.0, *) {
+                popup.obscuredContentInsets = .zero
+            }
+
+            let controller = PopupViewController(webView: popup)
+            controller.onClose = { [weak self] in
+                self?.popupController = nil
+                self?.popupWebView = nil
+            }
+            let navigation = UINavigationController(rootViewController: controller)
+            navigation.modalPresentationStyle = .pageSheet
+            popupWebView = popup
+            popupController = navigation
+            present(navigation)
+            return popup
+        }
+
+        func webViewDidClose(_ webView: WKWebView) {
+            guard webView === popupWebView else { return }
+            popupController?.dismiss(animated: true)
+            popupController = nil
+            popupWebView = nil
         }
 
         // MARK: - JavaScript dialogs
@@ -365,5 +442,45 @@ extension WebView {
             }
             return controller
         }
+    }
+}
+
+final class PopupViewController: UIViewController {
+    private let webView: WKWebView
+    var onClose: (() -> Void)?
+
+    init(webView: WKWebView) {
+        self.webView = webView
+        super.init(nibName: nil, bundle: nil)
+    }
+
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        view.backgroundColor = .black
+
+        webView.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(webView)
+        NSLayoutConstraint.activate([
+            webView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            webView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            webView.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
+            webView.bottomAnchor.constraint(equalTo: view.bottomAnchor)
+        ])
+
+        navigationItem.title = "Sign in"
+        navigationItem.rightBarButtonItem = UIBarButtonItem(
+            barButtonSystemItem: .done,
+            target: self,
+            action: #selector(done)
+        )
+    }
+
+    @objc private func done() {
+        onClose?()
+        dismiss(animated: true)
     }
 }

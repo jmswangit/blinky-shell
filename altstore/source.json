@@ -1,0 +1,46 @@
+{
+  "name": "Swan Apps",
+  "identifier": "cool.swan.sources",
+  "subtitle": "Self-hosted apps for Jacob",
+  "description": "AltStore / SideStore source for the Homepage WKWebView shell.",
+  "iconURL": "https://raw.githubusercontent.com/jmswangit/blinky-shell/main/altstore/icon.png",
+  "headerURL": "https://raw.githubusercontent.com/jmswangit/blinky-shell/main/altstore/header.png",
+  "website": "https://github.com/jmswangit/blinky-shell",
+  "tintColor": "#06B6D4",
+  "featuredApps": [
+    "cool.swan.blinkyshell"
+  ],
+  "apps": [
+    {
+      "name": "Homepage",
+      "bundleIdentifier": "cool.swan.blinkyshell",
+      "developerName": "Jacob Swan",
+      "subtitle": "Native shell for the Blinky dashboard",
+      "localizedDescription": "A native WKWebView shell for the Blinky Homepage dashboard, built for iPhone Duo. Homepage and every linked app stay in one webview, with full-screen Duo layout, Home/Back/Forward/Reload, OAuth/SSO popups, passkey session import, and the Tautulli/Plex fixes.",
+      "iconURL": "https://raw.githubusercontent.com/jmswangit/blinky-shell/main/altstore/icon.png",
+      "tintColor": "#06B6D4",
+      "category": "utilities",
+      "screenshots": [],
+      "versions": [
+        {
+          "version": "1.0.8",
+          "date": "2026-11-09",
+          "downloadURL": "https://github.com/jmswangit/blinky-shell/releases/download/v1.0.8/BlinkyShell-unsigned.ipa",
+          "size": 1661398,
+          "minOSVersion": "17.0",
+          "sha256": "6502698f89fc6f3526fab79071970de1be67c527be482e9b8f519423f1e1d851",
+          "localizedDescription": "Homepage 1.0.8: normal links stay in the main webview, OAuth/SSO popups for Plex/Google/Authentik, Tautulli Plex OAuth fix, Authentik session import, and the iPhone Duo full-screen layout."
+        }
+      ],
+      "appPermissions": {
+        "entitlements": [
+          "com.apple.developer.associated-domains"
+        ],
+        "privacy": {
+          "NSLocalNetworkUsageDescription": "Homepage connects to your self-hosted apps on the local network."
+        }
+      }
+    }
+  ],
+  "news": []
+}

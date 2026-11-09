@@ -28,6 +28,13 @@ struct WebView: UIViewRepresentable {
         )
         configuration.userContentController.addUserScript(script)
 
+        let tautulliScript = WKUserScript(
+            source: TautulliFix.source,
+            injectionTime: .atDocumentEnd,
+            forMainFrameOnly: true
+        )
+        configuration.userContentController.addUserScript(tautulliScript)
+
         let webView = WKWebView(frame: .zero, configuration: configuration)
         webView.navigationDelegate = context.coordinator
         webView.uiDelegate = context.coordinator

@@ -1,5 +1,4 @@
 import SwiftUI
-import UIKit
 
 struct ContentView: View {
     @StateObject private var model = WebViewModel()
@@ -8,7 +7,7 @@ struct ContentView: View {
     @State private var showError = false
     @State private var toolbarExpanded = true
     @State private var collapseWorkItem: DispatchWorkItem?
-    @State private var showClipboard = false
+    @State private var sessionImporter = SessionImporter()
 
     private let collapseDelay: TimeInterval = 5
 
@@ -38,7 +37,7 @@ struct ContentView: View {
         .statusBarHidden(true)
         .persistentSystemOverlays(.hidden)
         .sheet(isPresented: $showSettings) {
-            SettingsView(settings: settings)
+            SettingsView(settings: settings, onImportSession: { sessionImporter.start() })
         }
         .onChange(of: model.errorMessage) { _, newValue in
             showError = newValue != nil
@@ -52,6 +51,12 @@ struct ContentView: View {
         }
         .onAppear {
             scheduleCollapse()
+            sessionImporter.onCookies = { cookies in
+                model.setCookies(cookies)
+            }
+            sessionImporter.onError = { message in
+                model.errorMessage = message
+            }
         }
         .onDisappear {
             cancelCollapse()
@@ -70,19 +75,6 @@ struct ContentView: View {
             }
         } message: {
             Text(model.errorMessage ?? "")
-        }
-        .confirmationDialog("Clipboard", isPresented: $showClipboard, titleVisibility: .visible) {
-            Button("Copy selection") {
-                model.copySelection { text in
-                    guard !text.isEmpty else { return }
-                    UIPasteboard.general.string = text
-                }
-            }
-            Button("Paste clipboard") {
-                guard let text = UIPasteboard.general.string else { return }
-                model.pasteText(text) { _ in }
-            }
-            Button("Cancel", role: .cancel) {}
         }
     }
 
@@ -103,9 +95,6 @@ struct ContentView: View {
                 } else {
                     model.reload()
                 }
-            }
-            toolButton(systemName: "doc.on.doc", enabled: true) {
-                showClipboard = true
             }
             toolButton(systemName: "gearshape", enabled: true) {
                 showSettings = true
@@ -178,6 +167,7 @@ struct ContentView: View {
 
 struct SettingsView: View {
     @ObservedObject var settings: Settings
+    var onImportSession: () -> Void
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
@@ -194,6 +184,15 @@ struct SettingsView: View {
                     Button("Reset to default") {
                         settings.reset()
                     }
+                }
+
+                Section("Authentik session") {
+                    Button("Refresh session from Safari") {
+                        onImportSession()
+                    }
+                    Text("Opens auth.swan.cool in Safari. Log in with your passkey, and the session cookie is copied into the app.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
                 }
 
                 Section("Notes") {

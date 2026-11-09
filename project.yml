@@ -44,6 +44,10 @@ targets:
         CFBundleInfoDictionaryVersion: "6.0"
         CFBundleShortVersionString: $(MARKETING_VERSION)
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        CFBundleURLTypes:
+          - CFBundleURLName: cool.swan.blinkyshell.session
+            CFBundleURLSchemes:
+              - blinkyshell
         LSRequiresIPhoneOS: true
         UILaunchScreen: {}
         UIViewControllerBasedStatusBarAppearance: true

@@ -219,7 +219,9 @@ extension WebView {
             guard let url = navigationAction.request.url else { return nil }
 
             let scheme = (url.scheme ?? "").lowercased()
-            guard scheme == "http" || scheme == "https" else {
+            let isBlank = scheme == "about" && url.absoluteString.hasPrefix("about:blank")
+            let isWeb = scheme == "http" || scheme == "https"
+            guard isWeb || isBlank else {
                 UIApplication.shared.open(url, options: [:], completionHandler: nil)
                 return nil
             }
@@ -239,7 +241,8 @@ extension WebView {
                 "appleid.apple.com"
             ]
             let isAuthHost = authHosts.contains { host == $0 || host.hasSuffix("." + $0) }
-            let wantsPopup = isAuthHost
+            let wantsPopup = isBlank
+                || isAuthHost
                 || windowFeatures.width != nil
                 || windowFeatures.height != nil
                 || navigationAction.navigationType == .other

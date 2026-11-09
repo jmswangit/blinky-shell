@@ -1,0 +1,10 @@
+.DS_Store
+build/
+DerivedData/
+*.xcarchive
+*.ipa
+*.p12
+*.mobileprovision
+ExportOptions.plist
+BlinkyShell.xcodeproj/
+BlinkyShell/Info.plist

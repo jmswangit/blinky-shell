@@ -23,13 +23,13 @@
       "screenshots": [],
       "versions": [
         {
-          "version": "1.0.8",
+          "version": "1.0.9",
           "date": "2026-11-09",
-          "downloadURL": "https://github.com/jmswangit/blinky-shell/releases/download/v1.0.8/BlinkyShell-unsigned.ipa",
-          "size": 1661398,
+          "downloadURL": "https://github.com/jmswangit/blinky-shell/releases/download/v1.0.9/BlinkyShell-unsigned.ipa",
+          "size": 1671487,
           "minOSVersion": "17.0",
-          "sha256": "6502698f89fc6f3526fab79071970de1be67c527be482e9b8f519423f1e1d851",
-          "localizedDescription": "Homepage 1.0.8: normal links stay in the main webview, OAuth/SSO popups for Plex/Google/Authentik, Tautulli Plex OAuth fix, Authentik session import, and the iPhone Duo full-screen layout."
+          "sha256": "03edb1cd193c8347cca2e00bf4ff77b100f3de337d766270ad415905f0868a78",
+          "localizedDescription": "Homepage 1.0.9: native Tautulli Plex OAuth, normal link handling, OAuth/SSO popups, Authentik session import, and the iPhone Duo full-screen layout."
         }
       ],
       "appPermissions": {

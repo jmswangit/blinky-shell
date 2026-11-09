@@ -22,7 +22,7 @@ jobs:
       TEAM_ID: ${{ vars.TEAM_ID }}
       EXPORT_METHOD: ${{ vars.EXPORT_METHOD || 'ad-hoc' }}
       SIGNING_IDENTITY: ${{ vars.SIGNING_IDENTITY || 'Apple Distribution' }}
-      HAS_CERT: ${{ secrets.BUILD_CERTIFICATE_BASE64 != '' }}
+      HAS_CERT: ${{ secrets.BUILD_CERTIFICATE_BASE64 != '' && secrets.PROVISIONING_PROFILE_BASE64 != '' }}
 
     steps:
       - name: Checkout

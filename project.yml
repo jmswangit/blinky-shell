@@ -46,7 +46,6 @@ targets:
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         LSRequiresIPhoneOS: true
         UILaunchScreen: {}
-        UIRequiresFullScreen: true
         UIViewControllerBasedStatusBarAppearance: true
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait

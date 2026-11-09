@@ -28,21 +28,6 @@ struct WebView: UIViewRepresentable {
         )
         configuration.userContentController.addUserScript(script)
 
-        let selectionScript = WKUserScript(
-            source: """
-            (function () {
-              if (document.getElementById('blinky-selection-style')) { return; }
-              var style = document.createElement('style');
-              style.id = 'blinky-selection-style';
-              style.textContent = '* { -webkit-user-select: text !important; user-select: text !important; -webkit-touch-callout: default !important; }';
-              (document.head || document.documentElement).appendChild(style);
-            })();
-            """,
-            injectionTime: .atDocumentEnd,
-            forMainFrameOnly: true
-        )
-        configuration.userContentController.addUserScript(selectionScript)
-
         let webView = WKWebView(frame: .zero, configuration: configuration)
         webView.navigationDelegate = context.coordinator
         webView.uiDelegate = context.coordinator
@@ -160,11 +145,6 @@ extension WebView {
                 return true
             }
             return edge.edges == .left ? webView.canGoBack : webView.canGoForward
-        }
-
-        func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer,
-                               shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer) -> Bool {
-            true
         }
 
         // MARK: - Navigation policy

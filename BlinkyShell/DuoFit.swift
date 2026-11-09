@@ -40,6 +40,18 @@ enum DuoFit {
         }
       }
 
+      // iOS 27's new copy/paste UI and text selection behave better without the
+      // page-level zoom lock, so strip user-scalable=no / maximum-scale.
+      function cleanZoom(meta) {
+        var content = meta.getAttribute('content') || '';
+        var cleaned = content
+          .replace(/\s*,?\s*user-scalable\s*=\s*no/gi, '')
+          .replace(/\s*,?\s*maximum-scale\s*=\s*[^,]+/gi, '');
+        if (cleaned !== content) {
+          meta.setAttribute('content', cleaned);
+        }
+      }
+
       function readInset() {
         var inset = 0;
         try {
@@ -63,6 +75,7 @@ enum DuoFit {
 
           // Make env(safe-area-inset-*) meaningful for full-screen rendering.
           ensureCover(meta);
+          cleanZoom(meta);
 
           var inset = readInsetValue ? readInset() : 0;
           var outer = inset >= MIN && inset <= MAX;
@@ -73,6 +86,7 @@ enum DuoFit {
               applied = false;
               document.documentElement.removeAttribute('data-blinky-duo-fit');
               meta.setAttribute('content', originalViewport);
+              cleanZoom(meta);
               try { console.log('[Homepage] duo-fit restored'); } catch (e) {}
             }
             return;
@@ -81,7 +95,7 @@ enum DuoFit {
           applied = true;
           document.documentElement.setAttribute('data-blinky-duo-fit', '');
           meta.setAttribute('content',
-            'width=' + screenW + ', initial-scale=1, viewport-fit=cover, user-scalable=no');
+            'width=' + screenW + ', initial-scale=1, viewport-fit=cover');
           try {
             console.log('[Homepage] duo-fit applied', {
               screenWidth: screenW,

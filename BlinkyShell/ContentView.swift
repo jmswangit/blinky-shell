@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 struct ContentView: View {
     @StateObject private var model = WebViewModel()
@@ -7,6 +8,7 @@ struct ContentView: View {
     @State private var showError = false
     @State private var toolbarExpanded = true
     @State private var collapseWorkItem: DispatchWorkItem?
+    @State private var showClipboard = false
 
     private let collapseDelay: TimeInterval = 5
 
@@ -69,6 +71,19 @@ struct ContentView: View {
         } message: {
             Text(model.errorMessage ?? "")
         }
+        .confirmationDialog("Clipboard", isPresented: $showClipboard, titleVisibility: .visible) {
+            Button("Copy selection") {
+                model.copySelection { text in
+                    guard !text.isEmpty else { return }
+                    UIPasteboard.general.string = text
+                }
+            }
+            Button("Paste clipboard") {
+                guard let text = UIPasteboard.general.string else { return }
+                model.pasteText(text) { _ in }
+            }
+            Button("Cancel", role: .cancel) {}
+        }
     }
 
     private var toolbar: some View {
@@ -88,6 +103,9 @@ struct ContentView: View {
                 } else {
                     model.reload()
                 }
+            }
+            toolButton(systemName: "doc.on.doc", enabled: true) {
+                showClipboard = true
             }
             toolButton(systemName: "gearshape", enabled: true) {
                 showSettings = true

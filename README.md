@@ -12,6 +12,7 @@ It exists because an installed PWA cannot keep cross-origin links inside its own
 - Keeps every `http`/`https` navigation in one `WKWebView`.
 - Normal `target=_blank` links stay in the same webview; OAuth popups (Plex, Google, Authentik) open in a real child webview so `window.opener`, `postMessage`, and `window.close()` work.
 - Text selection and copy/paste are enabled even if a page tries to disable them.
+- The toolbar’s clipboard button (two-documents icon) offers **Copy selection** / **Paste clipboard** as a fallback for iOS 27 edit-menu quirks.
 - Home, Back, Forward, Reload, and Settings buttons in a floating toolbar.
 - The toolbar fades into a small button in the **bottom-left corner** after 5 seconds of inactivity; tap it to bring the controls back to the center.
 - Dark iOS-style app icon generated from `Design/AppIcon.svg`.

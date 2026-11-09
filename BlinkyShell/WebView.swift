@@ -216,45 +216,30 @@ extension WebView {
                      createWebViewWith configuration: WKWebViewConfiguration,
                      for navigationAction: WKNavigationAction,
                      windowFeatures: WKWindowFeatures) -> WKWebView? {
-            guard let url = navigationAction.request.url else { return nil }
-
-            let scheme = (url.scheme ?? "").lowercased()
-            let isBlank = scheme == "about" && url.absoluteString.hasPrefix("about:blank")
+            let requestURL = navigationAction.request.url
+            let scheme = (requestURL?.scheme ?? "").lowercased()
+            let isBlank = requestURL == nil || (scheme == "about" && (requestURL?.absoluteString.hasPrefix("about:blank") ?? false))
             let isWeb = scheme == "http" || scheme == "https"
-            guard isWeb || isBlank else {
-                UIApplication.shared.open(url, options: [:], completionHandler: nil)
+
+            if !isWeb && !isBlank {
+                if let requestURL {
+                    UIApplication.shared.open(requestURL, options: [:], completionHandler: nil)
+                }
                 return nil
             }
 
             // Nested popups from a popup stay in the popup.
             if webView === popupWebView {
-                webView.load(navigationAction.request)
+                if let requestURL {
+                    webView.load(navigationAction.request)
+                }
                 return nil
             }
 
-            let host = (url.host ?? "").lowercased()
-            let authHosts = [
-                "plex.tv", "app.plex.tv",
-                "accounts.google.com",
-                "auth.swan.cool",
-                "login.microsoftonline.com",
-                "appleid.apple.com"
-            ]
-            let isAuthHost = authHosts.contains { host == $0 || host.hasSuffix("." + $0) }
-            let wantsPopup = isBlank
-                || isAuthHost
-                || windowFeatures.width != nil
-                || windowFeatures.height != nil
-                || navigationAction.navigationType == .other
-
-            // Normal target=_blank links stay in the main webview.
-            if !wantsPopup {
-                webView.load(navigationAction.request)
-                return nil
-            }
-
-            // OAuth flows need a real popup so window.opener / postMessage /
-            // window.close() keep working.
+            // Always create a real popup for new-window requests so that
+            // window.open() returns a valid WindowProxy. OAuth/SSO flows
+            // (Plex, Google, Authentik, Beszel/PocketBase) depend on this.
+            // The popup shares the opener's process pool and cookie store.
             let popup = WKWebView(frame: .zero, configuration: configuration)
             popup.navigationDelegate = self
             popup.uiDelegate = self

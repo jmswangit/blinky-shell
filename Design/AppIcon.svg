@@ -1,0 +1,129 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <defs>
+    <!-- Bookmark Geometry Path -->
+    <path id="bookmark-path" d="
+      M 134,66 
+      L 378,66 
+      C 412,66 438,92 438,126 
+      L 438,404 
+      C 438,425 420,442 406,432 
+      L 272,324 
+      C 263,317 259,312 256,312 
+      C 253,312 249,317 240,324 
+      L 106,432 
+      C 92,442 74,425 74,404 
+      L 74,126 
+      C 74,92 100,66 134,66 
+      Z" 
+    />
+
+    <!-- Clipping path for inner blue body & texture -->
+    <clipPath id="bookmark-clip">
+      <use href="#bookmark-path" />
+    </clipPath>
+
+    <!-- Outer Ambient Neon Glow -->
+    <filter id="neon-glow" x="-30%" y="-30%" width="160%" height="160%" filterUnits="userSpaceOnUse">
+      <feGaussianBlur stdDeviation="16" result="blur1" />
+      <feGaussianBlur stdDeviation="30" result="blur2" />
+      <feMerge>
+        <feMergeNode in="blur2" />
+        <feMergeNode in="blur1" />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
+
+    <!-- Base Royal Blue Gradient -->
+    <linearGradient id="blue-base" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#1e6ae8" />
+      <stop offset="50%" stop-color="#1454cc" />
+      <stop offset="100%" stop-color="#0c3ca3" />
+    </linearGradient>
+
+    <!-- 3D Cylindrical Shading (Edges to Center) -->
+    <linearGradient id="edge-shading" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#031849" stop-opacity="0.85" />
+      <stop offset="18%" stop-color="#031849" stop-opacity="0.15" />
+      <stop offset="50%" stop-color="#ffffff" stop-opacity="0.12" />
+      <stop offset="82%" stop-color="#031849" stop-opacity="0.15" />
+      <stop offset="100%" stop-color="#031849" stop-opacity="0.85" />
+    </linearGradient>
+
+    <!-- Horizontal Rib Highlight Gradient -->
+    <linearGradient id="rib-sheen" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#38bdf8" stop-opacity="0" />
+      <stop offset="20%" stop-color="#38bdf8" stop-opacity="0.4" />
+      <stop offset="50%" stop-color="#93c5fd" stop-opacity="0.75" />
+      <stop offset="80%" stop-color="#38bdf8" stop-opacity="0.4" />
+      <stop offset="100%" stop-color="#38bdf8" stop-opacity="0" />
+    </linearGradient>
+
+    <!-- Horizontal Grooves Pattern -->
+    <pattern id="rib-pattern" width="512" height="19" patternUnits="userSpaceOnUse">
+      <!-- Shadow Groove -->
+      <rect x="0" y="0" width="512" height="7" fill="#041846" opacity="0.6" />
+      <!-- Raised Ridge Sheen -->
+      <rect x="0" y="7" width="512" height="12" fill="url(#rib-sheen)" />
+    </pattern>
+
+    <!-- Outer Border Glow Gradient -->
+    <linearGradient id="stroke-glow-grad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#38bdf8" />
+      <stop offset="70%" stop-color="#0ea5e9" />
+      <stop offset="100%" stop-color="#38bdf8" />
+    </linearGradient>
+
+    <!-- Core Stroke Highlight Gradient -->
+    <linearGradient id="stroke-core-grad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#f0f9ff" />
+      <stop offset="40%" stop-color="#e0f2fe" />
+      <stop offset="100%" stop-color="#bae6fd" />
+    </linearGradient>
+  </defs>
+
+  <!-- ================= Bookmark Interior ================= -->
+  <g clip-path="url(#bookmark-clip)">
+    <!-- Base Blue Background -->
+    <rect width="512" height="512" fill="url(#blue-base)" />
+
+    <!-- Horizontal Rib Texture -->
+    <rect width="512" height="512" fill="url(#rib-pattern)" />
+
+    <!-- 3D Curved Vignette Overlay -->
+    <rect width="512" height="512" fill="url(#edge-shading)" />
+  </g>
+
+  <!-- ================= Glowing Neon Border ================= -->
+  <!-- Layer 1: Ambient Outer Halo -->
+  <use 
+    href="#bookmark-path" 
+    fill="none" 
+    stroke="url(#stroke-glow-grad)" 
+    stroke-width="36" 
+    stroke-linejoin="round" 
+    stroke-linecap="round" 
+    opacity="0.55" 
+    filter="url(#neon-glow)" 
+  />
+
+  <!-- Layer 2: Main Cyan Neon Body -->
+  <use 
+    href="#bookmark-path" 
+    fill="none" 
+    stroke="url(#stroke-glow-grad)" 
+    stroke-width="26" 
+    stroke-linejoin="round" 
+    stroke-linecap="round" 
+  />
+
+  <!-- Layer 3: Inner White-Hot Specular Highlight -->
+  <use 
+    href="#bookmark-path" 
+    fill="none" 
+    stroke="url(#stroke-core-grad)" 
+    stroke-width="10" 
+    stroke-linejoin="round" 
+    stroke-linecap="round" 
+    opacity="0.9" 
+  />
+</svg>

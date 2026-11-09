@@ -73,7 +73,7 @@ enum DuoFit {
               applied = false;
               document.documentElement.removeAttribute('data-blinky-duo-fit');
               meta.setAttribute('content', originalViewport);
-              try { console.log('[Blinky] duo-fit restored'); } catch (e) {}
+              try { console.log('[Homepage] duo-fit restored'); } catch (e) {}
             }
             return;
           }
@@ -83,7 +83,7 @@ enum DuoFit {
           meta.setAttribute('content',
             'width=' + screenW + ', initial-scale=1, viewport-fit=cover, user-scalable=no');
           try {
-            console.log('[Blinky] duo-fit applied', {
+            console.log('[Homepage] duo-fit applied', {
               screenWidth: screenW,
               innerWidth: Math.round(window.innerWidth || 0),
               inset: inset

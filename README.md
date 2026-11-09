@@ -1,6 +1,8 @@
-# BlinkyShell
+# Homepage
 
-A tiny native iOS **WKWebView** shell for the Blinky Homepage dashboard, built for the iPhone Duo.
+A tiny native iOS **WKWebView** shell for the Blinky Homepage dashboard, installed as **Homepage**. Built for the iPhone Duo.
+
+The Xcode project/repo is still named `BlinkyShell`; the installed app name and icon label are **Homepage**.
 
 It exists because an installed PWA cannot keep cross-origin links inside its own webview — iOS opens them in the in-app browser (`SFSafariViewController`). A native shell owns the webview, so Homepage and every linked app stay in one place, and a single injected script can apply the Duo viewport fix to all of them.
 
@@ -10,6 +12,8 @@ It exists because an installed PWA cannot keep cross-origin links inside its own
 - Keeps every `http`/`https` navigation in one `WKWebView`.
 - Loads `target=_blank` / `window.open` links in the same webview instead of an in-app browser.
 - Home, Back, Forward, Reload, and Settings buttons in a floating toolbar.
+- The toolbar fades into a small corner button after 5 seconds of inactivity; tap the corner button to bring the controls back to the center.
+- Dark iOS-style app icon generated from `Design/AppIcon.svg`.
 - Full-screen on iPhone Duo: status bar and home indicator hidden, webview edge-to-edge, `obscuredContentInsets = .zero`.
 - Injects a bounded Duo viewport fix into every main-frame page. It only fires when the reserved strip is **60–160 px**, so it does not widen a normal notch (44–59 px) or a Split View window (hundreds of px).
 - Persistent cookies, file upload, downloads, JS dialogs, basic auth, and dark mode.
@@ -18,6 +22,7 @@ It exists because an installed PWA cannot keep cross-origin links inside its own
 
 ```
 project.yml                     XcodeGen project definition
+Design/AppIcon.svg              Source SVG for the app icon
 BlinkyShell/
   BlinkyShellApp.swift          App entry point
   ContentView.swift             WebView + floating toolbar + Settings sheet
@@ -107,7 +112,7 @@ If you use a **development** profile, also set `SIGNING_IDENTITY=Apple Developme
 
 1. Install the IPA with Sideloadly or AltStore/SideStore.
 2. On the device: **Settings → General → VPN & Device Management → [your developer] → Trust**.
-3. Launch **Blinky**.
+3. Launch **Homepage**.
 
 A paid team certificate/profile is valid for one year. Re-sign before it expires.
 
@@ -141,5 +146,5 @@ A paid team certificate/profile is valid for one year. Re-sign before it expires
 | "Unable to install" | `BUNDLE_ID` must match the App ID in the provisioning profile. |
 | "No signing certificate found" | The `.p12` is missing its private key, or `SIGNING_IDENTITY` is the wrong name. |
 | Build picks the wrong Xcode | The runner image changed; the workflow falls back to the newest 27.x, then the newest overall. |
-| Duo still has a right gap | The app is probably being clamped by WebKit. Open Safari Web Inspector (the webview is inspectable) and look for the `[Blinky] duo-fit` console line, then adjust `DuoFit.swift`. |
-| Pages cannot reach the LAN | Allow **Local Network** for Blinky in Settings → Privacy & Security → Local Network. |
+| Duo still has a right gap | The app is probably being clamped by WebKit. Open Safari Web Inspector (the webview is inspectable) and look for the `[Homepage] duo-fit` console line, then adjust `DuoFit.swift`. |
+| Pages cannot reach the LAN | Allow **Local Network** for Homepage in Settings → Privacy & Security → Local Network. |

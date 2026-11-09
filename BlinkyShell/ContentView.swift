@@ -5,6 +5,10 @@ struct ContentView: View {
     @StateObject private var settings = Settings.shared
     @State private var showSettings = false
     @State private var showError = false
+    @State private var toolbarExpanded = true
+    @State private var collapseWorkItem: DispatchWorkItem?
+
+    private let collapseDelay: TimeInterval = 5
 
     var body: some View {
         ZStack(alignment: .bottom) {
@@ -15,9 +19,18 @@ struct ContentView: View {
                 Color.black.ignoresSafeArea()
             }
 
-            toolbar
-                .padding(.horizontal, 14)
-                .padding(.bottom, 8)
+            if toolbarExpanded {
+                toolbar
+                    .padding(.horizontal, 14)
+                    .padding(.bottom, 8)
+                    .transition(.opacity.combined(with: .scale(scale: 0.92, anchor: .bottom)))
+            } else {
+                collapsedButton
+                    .frame(maxWidth: .infinity, alignment: .trailing)
+                    .padding(.horizontal, 14)
+                    .padding(.bottom, 8)
+                    .transition(.opacity.combined(with: .scale(scale: 0.92, anchor: .bottomTrailing)))
+            }
         }
         .background(Color.black.ignoresSafeArea())
         .statusBarHidden(true)
@@ -27,6 +40,19 @@ struct ContentView: View {
         }
         .onChange(of: model.errorMessage) { _, newValue in
             showError = newValue != nil
+        }
+        .onChange(of: showSettings) { _, isShowing in
+            if isShowing {
+                cancelCollapse()
+            } else {
+                scheduleCollapse()
+            }
+        }
+        .onAppear {
+            scheduleCollapse()
+        }
+        .onDisappear {
+            cancelCollapse()
         }
         .alert("Can't load page", isPresented: $showError) {
             Button("Retry") {
@@ -76,10 +102,34 @@ struct ContentView: View {
         .shadow(color: Color.black.opacity(0.45), radius: 24, x: 0, y: 10)
     }
 
+    private var collapsedButton: some View {
+        Button {
+            withAnimation(.spring(response: 0.45, dampingFraction: 0.85)) {
+                toolbarExpanded = true
+            }
+            scheduleCollapse()
+        } label: {
+            Image(systemName: "ellipsis")
+                .font(.system(size: 18, weight: .bold))
+                .frame(width: 46, height: 46)
+                .background(.ultraThinMaterial, in: Circle())
+                .overlay(
+                    Circle().strokeBorder(Color.white.opacity(0.12), lineWidth: 1)
+                )
+                .shadow(color: Color.black.opacity(0.45), radius: 18, x: 0, y: 6)
+        }
+        .buttonStyle(.plain)
+        .foregroundStyle(.primary)
+        .opacity(0.9)
+    }
+
     private func toolButton(systemName: String,
                             enabled: Bool,
                             action: @escaping () -> Void) -> some View {
-        Button(action: action) {
+        Button {
+            action()
+            scheduleCollapse()
+        } label: {
             Image(systemName: systemName)
                 .font(.system(size: 18, weight: .semibold))
                 .frame(width: 42, height: 38)
@@ -88,6 +138,23 @@ struct ContentView: View {
         .buttonStyle(.plain)
         .foregroundStyle(enabled ? Color.primary : Color.secondary.opacity(0.4))
         .disabled(!enabled)
+    }
+
+    private func scheduleCollapse() {
+        cancelCollapse()
+        let work = DispatchWorkItem {
+            withAnimation(.spring(response: 0.5, dampingFraction: 0.9)) {
+                toolbarExpanded = false
+            }
+            collapseWorkItem = nil
+        }
+        collapseWorkItem = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + collapseDelay, execute: work)
+    }
+
+    private func cancelCollapse() {
+        collapseWorkItem?.cancel()
+        collapseWorkItem = nil
     }
 }
 

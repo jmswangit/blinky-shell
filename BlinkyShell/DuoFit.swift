@@ -1,15 +1,16 @@
 import Foundation
 
-/// Injected into every main-frame page. On an iPhone Duo outer display the
-/// system reserves a vertical strip on the right (~84 CSS px) for the status
-/// bar / camera. WebKit hands the page a narrower layout viewport even when the
-/// web view itself is edge-to-edge. This widens the viewport meta to the real
-/// screen width, the same trick used in the DogEar web app.
+/// Injected into every main-frame page.
 ///
-/// Detection uses `env(safe-area-inset-right)` after forcing
-/// `viewport-fit=cover`. That signal is ~84 px only on the Duo outer display;
-/// it is 0 in a Split View window and 44–59 px on a normal notched iPhone in
-/// landscape, so those cases are left alone.
+/// Two jobs:
+/// 1. Keep `maximum-scale=1` on the viewport so iOS never auto-zooms into a
+///    focused text field (and never pinch-zooms). This is the same lock
+///    Audiobookshelf already injects; it does not change any font sizes.
+/// 2. On the iPhone Duo outer display, widen the layout viewport to the real
+///    screen width so the page fills the strip the system reserves on the
+///    right. Detection uses `env(safe-area-inset-right)` after forcing
+///    `viewport-fit=cover`; it is ~84 px only on the Duo outer display, 0 in
+///    Split View, and 44–59 px on a normal notched iPhone in landscape.
 enum DuoFit {
     static let source = #"""
     (function () {
@@ -40,15 +41,21 @@ enum DuoFit {
         }
       }
 
-      // iOS 27's new copy/paste UI and text selection behave better without the
-      // page-level zoom lock, so strip user-scalable=no / maximum-scale.
-      function cleanZoom(meta) {
+      // Keep iOS from zooming the page when a text field is focused. Uses
+      // maximum-scale only; input font sizes are left untouched.
+      function ensureZoomLock(meta) {
         var content = meta.getAttribute('content') || '';
-        var cleaned = content
-          .replace(/\s*,?\s*user-scalable\s*=\s*no/gi, '')
-          .replace(/\s*,?\s*maximum-scale\s*=\s*[^,]+/gi, '');
-        if (cleaned !== content) {
-          meta.setAttribute('content', cleaned);
+        var parts = content.split(',').map(function (s) { return s.trim(); }).filter(Boolean);
+        var kept = [];
+        for (var i = 0; i < parts.length; i++) {
+          if (!/^(maximum-scale|user-scalable)\s*=/i.test(parts[i])) {
+            kept.push(parts[i]);
+          }
+        }
+        kept.push('maximum-scale=1');
+        var next = kept.join(', ');
+        if (next !== content) {
+          meta.setAttribute('content', next);
         }
       }
 
@@ -75,7 +82,7 @@ enum DuoFit {
 
           // Make env(safe-area-inset-*) meaningful for full-screen rendering.
           ensureCover(meta);
-          cleanZoom(meta);
+          ensureZoomLock(meta);
 
           var inset = readInsetValue ? readInset() : 0;
           var outer = inset >= MIN && inset <= MAX;
@@ -86,7 +93,8 @@ enum DuoFit {
               applied = false;
               document.documentElement.removeAttribute('data-blinky-duo-fit');
               meta.setAttribute('content', originalViewport);
-              cleanZoom(meta);
+              ensureCover(meta);
+              ensureZoomLock(meta);
               try { console.log('[Homepage] duo-fit restored'); } catch (e) {}
             }
             return;
@@ -95,7 +103,7 @@ enum DuoFit {
           applied = true;
           document.documentElement.setAttribute('data-blinky-duo-fit', '');
           meta.setAttribute('content',
-            'width=' + screenW + ', initial-scale=1, viewport-fit=cover');
+            'width=' + screenW + ', initial-scale=1, maximum-scale=1, viewport-fit=cover');
           try {
             console.log('[Homepage] duo-fit applied', {
               screenWidth: screenW,
@@ -114,8 +122,8 @@ enum DuoFit {
       }
 
       function boot() {
-        // First pass installs viewport-fit=cover; the inset is only readable
-        // after WebKit has re-laid out the page.
+        // First pass installs viewport-fit=cover + the zoom lock; the inset is
+        // only readable after WebKit has re-laid out the page.
         apply(false);
         setTimeout(function () { apply(true); }, 150);
         setTimeout(function () { apply(true); }, 600);

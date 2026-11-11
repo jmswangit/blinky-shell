@@ -34,6 +34,7 @@ struct WebView: UIViewRepresentable {
             forMainFrameOnly: true
         )
         configuration.userContentController.addUserScript(tautulliScript)
+
         configuration.userContentController.add(context.coordinator, name: "blinkyPlex")
 
         let webView = WKWebView(frame: .zero, configuration: configuration)

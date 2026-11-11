@@ -8,6 +8,9 @@ struct ContentView: View {
     @State private var toolbarExpanded = true
     @State private var collapseWorkItem: DispatchWorkItem?
     @State private var sessionImporter = SessionImporter()
+    @AppStorage("collapsedButtonX") private var collapsedButtonX: Double = -1
+    @AppStorage("collapsedButtonY") private var collapsedButtonY: Double = -1
+    @State private var collapsedDragOffset: CGSize = .zero
 
     private let collapseDelay: TimeInterval = 5
 
@@ -23,14 +26,13 @@ struct ContentView: View {
             if toolbarExpanded {
                 toolbar
                     .padding(.horizontal, 14)
-                    .padding(.bottom, 8)
+                    .padding(.bottom, 4)
                     .transition(.opacity.combined(with: .scale(scale: 0.92, anchor: .bottom)))
             } else {
-                collapsedButton
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.horizontal, 14)
-                    .padding(.bottom, 8)
-                    .transition(.opacity.combined(with: .scale(scale: 0.92, anchor: .bottomLeading)))
+                GeometryReader { geo in
+                    collapsedButton(in: geo.size)
+                }
+                .transition(.opacity.combined(with: .scale(scale: 0.92, anchor: .bottomLeading)))
             }
         }
         .background(Color.black.ignoresSafeArea())
@@ -109,25 +111,53 @@ struct ContentView: View {
         .shadow(color: Color.black.opacity(0.45), radius: 24, x: 0, y: 10)
     }
 
-    private var collapsedButton: some View {
-        Button {
-            withAnimation(.spring(response: 0.45, dampingFraction: 0.85)) {
-                toolbarExpanded = true
+    private func collapsedButton(in size: CGSize) -> some View {
+        let half: CGFloat = 23
+        let maxX = max(size.width - half, half)
+        let maxY = max(size.height - half, half)
+        let defaultX = min(max(14 + half, half), maxX)
+        let defaultY = min(max(size.height - 4 - half, half), maxY)
+        let baseX = collapsedButtonX < 0 ? defaultX : CGFloat(collapsedButtonX) * size.width
+        let baseY = collapsedButtonY < 0 ? defaultY : CGFloat(collapsedButtonY) * size.height
+        let x = min(max(baseX + collapsedDragOffset.width, half), maxX)
+        let y = min(max(baseY + collapsedDragOffset.height, half), maxY)
+
+        return Image(systemName: "ellipsis")
+            .font(.system(size: 18, weight: .bold))
+            .frame(width: 46, height: 46)
+            .background(.ultraThinMaterial, in: Circle())
+            .overlay(
+                Circle().strokeBorder(Color.white.opacity(0.12), lineWidth: 1)
+            )
+            .shadow(color: Color.black.opacity(0.45), radius: 18, x: 0, y: 6)
+            .foregroundStyle(.primary)
+            .opacity(0.9)
+            .contentShape(Circle())
+            .position(x: x, y: y)
+            .onTapGesture {
+                withAnimation(.spring(response: 0.45, dampingFraction: 0.85)) {
+                    toolbarExpanded = true
+                }
+                scheduleCollapse()
             }
-            scheduleCollapse()
-        } label: {
-            Image(systemName: "ellipsis")
-                .font(.system(size: 18, weight: .bold))
-                .frame(width: 46, height: 46)
-                .background(.ultraThinMaterial, in: Circle())
-                .overlay(
-                    Circle().strokeBorder(Color.white.opacity(0.12), lineWidth: 1)
-                )
-                .shadow(color: Color.black.opacity(0.45), radius: 18, x: 0, y: 6)
-        }
-        .buttonStyle(.plain)
-        .foregroundStyle(.primary)
-        .opacity(0.9)
+            .highPriorityGesture(
+                LongPressGesture(minimumDuration: 0.2)
+                    .sequenced(before: DragGesture(minimumDistance: 0, coordinateSpace: .local))
+                    .onChanged { value in
+                        if case .second(true, let drag?) = value {
+                            collapsedDragOffset = drag.translation
+                        }
+                    }
+                    .onEnded { value in
+                        if case .second(true, let drag?) = value {
+                            let newX = min(max(baseX + drag.translation.width, half), maxX)
+                            let newY = min(max(baseY + drag.translation.height, half), maxY)
+                            collapsedButtonX = Double(newX / size.width)
+                            collapsedButtonY = Double(newY / size.height)
+                        }
+                        collapsedDragOffset = .zero
+                    }
+            )
     }
 
     private func toolButton(systemName: String,

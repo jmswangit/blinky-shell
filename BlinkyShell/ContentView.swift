@@ -134,24 +134,24 @@ struct ContentView: View {
             .opacity(0.9)
             .contentShape(Circle())
             .position(x: x, y: y)
-            .onTapGesture {
-                withAnimation(.spring(response: 0.45, dampingFraction: 0.85)) {
-                    toolbarExpanded = true
-                }
-                scheduleCollapse()
-            }
-            .highPriorityGesture(
-                LongPressGesture(minimumDuration: 0.2)
-                    .sequenced(before: DragGesture(minimumDistance: 0, coordinateSpace: .local))
+            .gesture(
+                DragGesture(minimumDistance: 0, coordinateSpace: .local)
                     .onChanged { value in
-                        if case .second(true, let drag?) = value {
-                            collapsedDragOffset = drag.translation
+                        let distance = sqrt(value.translation.width * value.translation.width + value.translation.height * value.translation.height)
+                        if distance > 4 {
+                            collapsedDragOffset = value.translation
                         }
                     }
                     .onEnded { value in
-                        if case .second(true, let drag?) = value {
-                            let newX = min(max(baseX + drag.translation.width, half), maxX)
-                            let newY = min(max(baseY + drag.translation.height, half), maxY)
+                        let distance = sqrt(value.translation.width * value.translation.width + value.translation.height * value.translation.height)
+                        if distance < 8 {
+                            withAnimation(.spring(response: 0.45, dampingFraction: 0.85)) {
+                                toolbarExpanded = true
+                            }
+                            scheduleCollapse()
+                        } else {
+                            let newX = min(max(baseX + value.translation.width, half), maxX)
+                            let newY = min(max(baseY + value.translation.height, half), maxY)
                             collapsedButtonX = Double(newX / size.width)
                             collapsedButtonY = Double(newY / size.height)
                         }

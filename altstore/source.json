@@ -23,13 +23,13 @@
       "screenshots": [],
       "versions": [
         {
-          "version": "1.0.10",
+          "version": "1.0.11",
           "date": "2026-11-09",
-          "downloadURL": "https://github.com/jmswangit/blinky-shell/releases/download/v1.0.10/BlinkyShell-unsigned.ipa",
-          "size": 1676861,
+          "downloadURL": "https://github.com/jmswangit/blinky-shell/releases/download/v1.0.11/BlinkyShell-unsigned.ipa",
+          "size": 1674973,
           "minOSVersion": "17.0",
-          "sha256": "c1057fe71330e630cdad876b17f17e6d6935781ef8ce0f2b42a05ee586d326da",
-          "localizedDescription": "Homepage 1.0.10: lower toolbar, draggable collapsed menu with saved position, and a maximum-scale zoom lock so focusing inputs in Audiobookshelf/Achew no longer zooms."
+          "sha256": "b4f78360a404cecfe6a432e69cb6e359f60d0671572980756175be328e072235",
+          "localizedDescription": "Homepage 1.0.11: tapping the collapsed ... menu expands the toolbar again; dragging moves it and remembers the position."
         }
       ],
       "appPermissions": {
